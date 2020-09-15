@@ -1305,10 +1305,9 @@ UVCCameraReader::DecodeMJPEGtoBGRA32(uint8_t *in_buf, const size_t in_size, uint
 
     if (decompressStatus != 0)
     {
-        // This can happen when the host PC is not reading data off the camera fast enough. We also have the option to
-        // move the use of libjpeg-turbo to a more recent version and use tjGetErrorCode() to get a better understanding
-        // of the status returned.
-        LOG_WARNING("MJPEG decode failed, dropping image: %d", decompressStatus);
+        // This can happen when the host PC is not reading data off the camera fast enough.
+        //This also happens if the data stream from the camera is corrupted for unknown reasons.
+        LOG_WARNING("MJPEG decode failed, dropping image: %s", tjGetErrorStr2(m_decoder));
         return K4A_RESULT_FAILED;
     }
 
