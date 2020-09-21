@@ -52,19 +52,19 @@ class K4AROSDevice
 
   void getRgbCameraInfo(sensor_msgs::CameraInfo& camera_info);
 
-  k4a_result_t getDepthFrame(const k4a::capture& capture, sensor_msgs::ImagePtr& depth_frame, bool rectified);
+  k4a_result_t getDepthFrame(k4a::image &k4a_depth_frame, sensor_msgs::ImagePtr& depth_frame, bool rectified);
 
-  k4a_result_t getPointCloud(const k4a::capture& capture, sensor_msgs::PointCloud2Ptr& point_cloud);
+  k4a_result_t getPointCloud(k4a::image &k4a_depth_frame, sensor_msgs::PointCloud2Ptr& point_cloud);
 
-  k4a_result_t getRgbPointCloudInRgbFrame(const k4a::capture& capture, sensor_msgs::PointCloud2Ptr& point_cloud);
-  k4a_result_t getRgbPointCloudInDepthFrame(const k4a::capture& capture, sensor_msgs::PointCloud2Ptr& point_cloud);
+  k4a_result_t getRgbPointCloudInRgbFrame(k4a::image &k4a_depth_frame, k4a::image &k4a_bgra_frame, sensor_msgs::PointCloud2Ptr& point_cloud);
+  k4a_result_t getRgbPointCloudInDepthFrame(k4a::image &k4a_depth_frame, k4a::image &k4a_bgra_frame, sensor_msgs::PointCloud2Ptr& point_cloud);
 
   k4a_result_t getImuFrame(const k4a_imu_sample_t& capture, sensor_msgs::ImuPtr& imu_frame);
 
-  k4a_result_t getRbgFrame(const k4a::capture& capture, sensor_msgs::ImagePtr& rgb_frame, bool rectified);
-  k4a_result_t getJpegRgbFrame(const k4a::capture& capture, sensor_msgs::CompressedImagePtr& jpeg_image);
+  k4a_result_t getRbgFrame(k4a::image &k4a_bgra_frame, k4a::image &k4a_depth_frame, sensor_msgs::ImagePtr& rgb_frame, bool rectified);
+  k4a_result_t getJpegRgbFrame(k4a::image &k4a_jpeg_frame, sensor_msgs::CompressedImagePtr& jpeg_image);
 
-  k4a_result_t getIrFrame(const k4a::capture& capture, sensor_msgs::ImagePtr& ir_image);
+  k4a_result_t getIrFrame(k4a::image &k4a_ir_frame, sensor_msgs::ImagePtr& ir_image);
 
 #if defined(K4A_BODY_TRACKING)
   k4a_result_t getBodyMarker(const k4abt_body_t& body, visualization_msgs::MarkerPtr marker_msg, int jointType,

@@ -365,11 +365,9 @@ void K4AROSDevice::stopImu()
   }
 }
 
-k4a_result_t K4AROSDevice::getDepthFrame(const k4a::capture& capture, sensor_msgs::ImagePtr& depth_image,
+k4a_result_t K4AROSDevice::getDepthFrame(k4a::image &k4a_depth_frame, sensor_msgs::ImagePtr& depth_image,
                                          bool rectified = false)
 {
-  k4a::image k4a_depth_frame = capture.get_depth_image();
-
   if (!k4a_depth_frame)
   {
     ROS_ERROR("Cannot render depth frame: no frame");
@@ -401,10 +399,8 @@ k4a_result_t K4AROSDevice::renderDepthToROS(sensor_msgs::ImagePtr& depth_image, 
   return K4A_RESULT_SUCCEEDED;
 }
 
-k4a_result_t K4AROSDevice::getIrFrame(const k4a::capture& capture, sensor_msgs::ImagePtr& ir_image)
+k4a_result_t K4AROSDevice::getIrFrame(k4a::image &k4a_ir_frame, sensor_msgs::ImagePtr& ir_image)
 {
-  k4a::image k4a_ir_frame = capture.get_ir_image();
-
   if (!k4a_ir_frame)
   {
     ROS_ERROR("Cannot render IR frame: no frame");
@@ -436,10 +432,8 @@ k4a_result_t K4AROSDevice::renderIrToROS(sensor_msgs::ImagePtr& ir_image, k4a::i
   return K4A_RESULT_SUCCEEDED;
 }
 
-k4a_result_t K4AROSDevice::getJpegRgbFrame(const k4a::capture& capture, sensor_msgs::CompressedImagePtr& jpeg_image)
+k4a_result_t K4AROSDevice::getJpegRgbFrame(k4a::image &k4a_jpeg_frame, sensor_msgs::CompressedImagePtr& jpeg_image)
 {
-  k4a::image k4a_jpeg_frame = capture.get_color_image();
-
   if (!k4a_jpeg_frame)
   {
     ROS_ERROR("Cannot render Jpeg frame: no frame");
@@ -452,11 +446,9 @@ k4a_result_t K4AROSDevice::getJpegRgbFrame(const k4a::capture& capture, sensor_m
   return K4A_RESULT_SUCCEEDED;
 }
 
-k4a_result_t K4AROSDevice::getRbgFrame(const k4a::capture& capture, sensor_msgs::ImagePtr& rgb_image,
+k4a_result_t K4AROSDevice::getRbgFrame(k4a::image &k4a_bgra_frame, k4a::image &k4a_depth_frame, sensor_msgs::ImagePtr& rgb_image,
                                        bool rectified = false)
 {
-  k4a::image k4a_bgra_frame = capture.get_color_image();
-
   if (!k4a_bgra_frame)
   {
     ROS_ERROR("Cannot render BGRA frame: no frame");
@@ -474,8 +466,6 @@ k4a_result_t K4AROSDevice::getRbgFrame(const k4a::capture& capture, sensor_msgs:
 
   if (rectified)
   {
-    k4a::image k4a_depth_frame = capture.get_depth_image();
-
     calibration_data_.k4a_transformation_.color_image_to_depth_camera(k4a_depth_frame, k4a_bgra_frame,
                                                                       &calibration_data_.transformed_rgb_image_);
 
@@ -497,17 +487,16 @@ k4a_result_t K4AROSDevice::renderBGRA32ToROS(sensor_msgs::ImagePtr& rgb_image, k
   return K4A_RESULT_SUCCEEDED;
 }
 
-k4a_result_t K4AROSDevice::getRgbPointCloudInDepthFrame(const k4a::capture& capture,
+k4a_result_t K4AROSDevice::getRgbPointCloudInDepthFrame(k4a::image &k4a_depth_frame,
+                                                        k4a::image &k4a_bgra_frame,
                                                         sensor_msgs::PointCloud2Ptr& point_cloud)
 {
-  const k4a::image k4a_depth_frame = capture.get_depth_image();
   if (!k4a_depth_frame)
   {
     ROS_ERROR("Cannot render RGB point cloud: no depth frame");
     return K4A_RESULT_FAILED;
   }
 
-  const k4a::image k4a_bgra_frame = capture.get_color_image();
   if (!k4a_bgra_frame)
   {
     ROS_ERROR("Cannot render RGB point cloud: no BGRA frame");
@@ -530,17 +519,16 @@ k4a_result_t K4AROSDevice::getRgbPointCloudInDepthFrame(const k4a::capture& capt
                              point_cloud);
 }
 
-k4a_result_t K4AROSDevice::getRgbPointCloudInRgbFrame(const k4a::capture& capture,
+k4a_result_t K4AROSDevice::getRgbPointCloudInRgbFrame(k4a::image &k4a_depth_frame,
+                                                      k4a::image &k4a_bgra_frame,
                                                       sensor_msgs::PointCloud2Ptr& point_cloud)
 {
-  k4a::image k4a_depth_frame = capture.get_depth_image();
   if (!k4a_depth_frame)
   {
     ROS_ERROR("Cannot render RGB point cloud: no depth frame");
     return K4A_RESULT_FAILED;
   }
 
-  k4a::image k4a_bgra_frame = capture.get_color_image();
   if (!k4a_bgra_frame)
   {
     ROS_ERROR("Cannot render RGB point cloud: no BGRA frame");
@@ -562,10 +550,8 @@ k4a_result_t K4AROSDevice::getRgbPointCloudInRgbFrame(const k4a::capture& captur
   return fillColorPointCloud(calibration_data_.point_cloud_image_, k4a_bgra_frame, point_cloud);
 }
 
-k4a_result_t K4AROSDevice::getPointCloud(const k4a::capture& capture, sensor_msgs::PointCloud2Ptr& point_cloud)
+k4a_result_t K4AROSDevice::getPointCloud(k4a::image &k4a_depth_frame, sensor_msgs::PointCloud2Ptr& point_cloud)
 {
-  k4a::image k4a_depth_frame = capture.get_depth_image();
-
   if (!k4a_depth_frame)
   {
     ROS_ERROR("Cannot render point cloud: no depth frame");
@@ -809,7 +795,6 @@ void K4AROSDevice::framePublisherThread()
 
   Time capture_time;
 
-  k4a::capture capture;
 
   calibration_data_.getDepthCameraInfo(depth_raw_camera_info);
   calibration_data_.getRgbCameraInfo(rgb_raw_camera_info);
@@ -819,8 +804,13 @@ void K4AROSDevice::framePublisherThread()
 
   while (running_ && ros::ok() && !ros::isShuttingDown())
   {
+      k4a::image irImage;
+      k4a::image depthImage;
+      k4a::image colorImage;
+      
     if (k4a_device_)
     {
+      k4a::capture capture;
       // TODO: consider appropriate capture timeout based on camera framerate
       if (!k4a_device_.get_capture(&capture, std::chrono::milliseconds(K4A_WAIT_INFINITE)))
       {
@@ -832,20 +822,36 @@ void K4AROSDevice::framePublisherThread()
       {
         if (params_.depth_enabled)
         {
-          // Update the timestamp offset based on the difference between the system timestamp (i.e., arrival at USB bus)
-          // and device timestamp (i.e., hardware clock at exposure start).
-          updateTimestampOffset(capture.get_ir_image().get_device_timestamp(),
-                                capture.get_ir_image().get_system_timestamp());
+            irImage = capture.get_ir_image();
+            depthImage = capture.get_depth_image();
         }
-        else if (params_.color_enabled)
+        
+        if (params_.color_enabled)
         {
-          updateTimestampOffset(capture.get_color_image().get_device_timestamp(),
-                                capture.get_color_image().get_system_timestamp());
+            colorImage = capture.get_color_image();
+        }
+        
+        if(irImage.is_valid())
+        {
+            // Update the timestamp offset based on the difference between the system timestamp (i.e., arrival at USB bus)
+            // and device timestamp (i.e., hardware clock at exposure start).
+            updateTimestampOffset(irImage.get_device_timestamp(),
+                                  irImage.get_system_timestamp());
+        }
+        else
+        {
+            if(colorImage.is_valid())
+            {
+                updateTimestampOffset(colorImage.get_device_timestamp(),
+                                      colorImage.get_system_timestamp());
+            }
         }
       }
     }
     else if (k4a_playback_handle_)
     {
+      k4a::capture capture;
+      
       std::lock_guard<std::mutex> guard(k4a_playback_handle_mutex_);
       if (!k4a_playback_handle_.get_next_capture(&capture))
       {
@@ -882,10 +888,10 @@ void K4AROSDevice::framePublisherThread()
       // Only create ir frame when we are using a device or we have an ir image.
       // Recordings may not have synchronized captures. For unsynchronized captures without ir image skip ir frame.
       if ((ir_raw_publisher_.getNumSubscribers() > 0 || ir_raw_camerainfo_publisher_.getNumSubscribers() > 0) &&
-          (k4a_device_ || capture.get_ir_image() != nullptr))
+          (k4a_device_ || irImage.is_valid()))
       {
         // IR images are available in all depth modes
-        result = getIrFrame(capture, ir_raw_frame);
+        result = getIrFrame(irImage, ir_raw_frame);
 
         if (result != K4A_RESULT_SUCCEEDED)
         {
@@ -895,7 +901,7 @@ void K4AROSDevice::framePublisherThread()
         }
         else if (result == K4A_RESULT_SUCCEEDED)
         {
-          capture_time = timestampToROS(capture.get_ir_image().get_device_timestamp());
+          capture_time = timestampToROS(irImage.get_device_timestamp());
           printTimestampDebugMessage("IR image", capture_time);
 
           // Re-sychronize the timestamps with the capture timestamp
@@ -915,9 +921,9 @@ void K4AROSDevice::framePublisherThread()
         // Recordings may not have synchronized captures. For unsynchronized captures without depth image skip depth
         // frame.
         if ((depth_raw_publisher_.getNumSubscribers() > 0 || depth_raw_camerainfo_publisher_.getNumSubscribers() > 0) &&
-            (k4a_device_ || capture.get_depth_image() != nullptr))
+            (k4a_device_ || depthImage.is_valid()))
         {
-          result = getDepthFrame(capture, depth_raw_frame);
+          result = getDepthFrame(depthImage, depth_raw_frame);
 
           if (result != K4A_RESULT_SUCCEEDED)
           {
@@ -927,7 +933,7 @@ void K4AROSDevice::framePublisherThread()
           }
           else if (result == K4A_RESULT_SUCCEEDED)
           {
-            capture_time = timestampToROS(capture.get_depth_image().get_device_timestamp());
+            capture_time = timestampToROS(depthImage.get_device_timestamp());
             printTimestampDebugMessage("Depth image", capture_time);
 
             // Re-sychronize the timestamps with the capture timestamp
@@ -947,9 +953,9 @@ void K4AROSDevice::framePublisherThread()
         if (params_.color_enabled &&
             (depth_rect_publisher_.getNumSubscribers() > 0 ||
              depth_rect_camerainfo_publisher_.getNumSubscribers() > 0) &&
-            (k4a_device_ || capture.get_depth_image() != nullptr))
+            (k4a_device_ || depthImage.is_valid()))
         {
-          result = getDepthFrame(capture, depth_rect_frame, true /* rectified */);
+          result = getDepthFrame(depthImage, depth_rect_frame, true /* rectified */);
 
           if (result != K4A_RESULT_SUCCEEDED)
           {
@@ -959,7 +965,7 @@ void K4AROSDevice::framePublisherThread()
           }
           else if (result == K4A_RESULT_SUCCEEDED)
           {
-            capture_time = timestampToROS(capture.get_depth_image().get_device_timestamp());
+            capture_time = timestampToROS(depthImage.get_device_timestamp());
             printTimestampDebugMessage("Depth image", capture_time);
 
             depth_rect_frame->header.stamp = capture_time;
@@ -977,7 +983,7 @@ void K4AROSDevice::framePublisherThread()
         if (params_.body_tracking_enabled &&
             (body_marker_publisher_.getNumSubscribers() > 0 || body_index_map_publisher_.getNumSubscribers() > 0))
         {
-          capture_time = timestampToROS(capture.get_depth_image().get_device_timestamp());
+          capture_time = timestampToROS(depthImage.get_device_timestamp());
 
           if (!k4abt_tracker_.enqueue_capture(capture))
           {
@@ -1050,9 +1056,9 @@ void K4AROSDevice::framePublisherThread()
       if (params_.color_format == "jpeg")
       {
         if ((rgb_jpeg_publisher_.getNumSubscribers() > 0 || rgb_raw_camerainfo_publisher_.getNumSubscribers() > 0) &&
-            (k4a_device_ || capture.get_color_image() != nullptr))
+            (k4a_device_ || colorImage.is_valid()))
         {
-          result = getJpegRgbFrame(capture, rgb_jpeg_frame);
+          result = getJpegRgbFrame(colorImage, rgb_jpeg_frame);
 
           if (result != K4A_RESULT_SUCCEEDED)
           {
@@ -1061,7 +1067,7 @@ void K4AROSDevice::framePublisherThread()
             return;
           }
 
-          capture_time = timestampToROS(capture.get_color_image().get_device_timestamp());
+          capture_time = timestampToROS(colorImage.get_device_timestamp());
           printTimestampDebugMessage("Color image", capture_time);
 
           rgb_jpeg_frame->header.stamp = capture_time;
@@ -1076,9 +1082,9 @@ void K4AROSDevice::framePublisherThread()
       else if (params_.color_format == "bgra")
       {
         if ((rgb_raw_publisher_.getNumSubscribers() > 0 || rgb_raw_camerainfo_publisher_.getNumSubscribers() > 0) &&
-            (k4a_device_ || capture.get_color_image() != nullptr))
+            (k4a_device_ || colorImage.is_valid()))
         {
-          result = getRbgFrame(capture, rgb_raw_frame);
+          result = getRbgFrame(colorImage, depthImage, rgb_raw_frame);
 
           if (result != K4A_RESULT_SUCCEEDED)
           {
@@ -1087,7 +1093,7 @@ void K4AROSDevice::framePublisherThread()
             return;
           }
 
-          capture_time = timestampToROS(capture.get_color_image().get_device_timestamp());
+          capture_time = timestampToROS(colorImage.get_device_timestamp());
           printTimestampDebugMessage("Color image", capture_time);
 
           rgb_raw_frame->header.stamp = capture_time;
@@ -1104,9 +1110,9 @@ void K4AROSDevice::framePublisherThread()
         // not have synchronized captures. For unsynchronized captures image skip rgb rect frame.
         if (params_.depth_enabled && (calibration_data_.k4a_calibration_.depth_mode != K4A_DEPTH_MODE_PASSIVE_IR) &&
             (rgb_rect_publisher_.getNumSubscribers() > 0 || rgb_rect_camerainfo_publisher_.getNumSubscribers() > 0) &&
-            (k4a_device_ || (capture.get_color_image() != nullptr && capture.get_depth_image() != nullptr)))
+            (k4a_device_ || (colorImage.is_valid() && depthImage.is_valid())))
         {
-          result = getRbgFrame(capture, rgb_rect_frame, true /* rectified */);
+          result = getRbgFrame(colorImage, depthImage, rgb_rect_frame, true /* rectified */);
 
           if (result != K4A_RESULT_SUCCEEDED)
           {
@@ -1115,7 +1121,7 @@ void K4AROSDevice::framePublisherThread()
             return;
           }
 
-          capture_time = timestampToROS(capture.get_color_image().get_device_timestamp());
+          capture_time = timestampToROS(colorImage.get_device_timestamp());
           printTimestampDebugMessage("Color image", capture_time);
 
           rgb_rect_frame->header.stamp = capture_time;
@@ -1132,17 +1138,17 @@ void K4AROSDevice::framePublisherThread()
     // Only create pointcloud when we are using a device or we have a synchronized image.
     // Recordings may not have synchronized captures. In unsynchronized captures skip point cloud.
     if (pointcloud_publisher_.getNumSubscribers() > 0 &&
-        (k4a_device_ || (capture.get_color_image() != nullptr && capture.get_depth_image() != nullptr)))
+        (k4a_device_ || (colorImage.is_valid() && depthImage.is_valid())))
     {
       if (params_.rgb_point_cloud)
       {
         if (params_.point_cloud_in_depth_frame)
         {
-          result = getRgbPointCloudInDepthFrame(capture, point_cloud);
+          result = getRgbPointCloudInDepthFrame(depthImage, colorImage, point_cloud);
         }
         else
         {
-          result = getRgbPointCloudInRgbFrame(capture, point_cloud);
+          result = getRgbPointCloudInRgbFrame(depthImage, colorImage, point_cloud);
         }
 
         if (result != K4A_RESULT_SUCCEEDED)
@@ -1154,7 +1160,7 @@ void K4AROSDevice::framePublisherThread()
       }
       else if (params_.point_cloud)
       {
-        result = getPointCloud(capture, point_cloud);
+        result = getPointCloud(depthImage, point_cloud);
 
         if (result != K4A_RESULT_SUCCEEDED)
         {
